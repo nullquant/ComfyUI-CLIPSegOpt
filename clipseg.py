@@ -15,8 +15,6 @@ import warnings
 warnings.filterwarnings("ignore", category=UserWarning, module="torch")
 warnings.filterwarnings("ignore", category=UserWarning, module="safetensors")
 
-import os
-
 
 class CLIPSegText:
 
@@ -80,11 +78,6 @@ class CLIPSegText:
         tensor_bws = []
         image_out_heatmaps = []
         image_out_binaries = []
-
-        current_working_directory = os.getcwd()
-        print(current_working_directory)
-        print(os.listdir('.'))
-        print(os.listdir('models/'))
 
         for image in images:
             image_pil, image_np = image_from_tensor(image)
