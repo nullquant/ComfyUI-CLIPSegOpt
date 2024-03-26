@@ -82,64 +82,6 @@
       ]
     },
     {
-      "id": 9,
-      "type": "CLIPSegText",
-      "pos": [
-        729,
-        317
-      ],
-      "size": {
-        "0": 400,
-        "1": 212
-      },
-      "flags": {},
-      "order": 2,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "images",
-          "type": "IMAGE",
-          "link": 8
-        }
-      ],
-      "outputs": [
-        {
-          "name": "Mask",
-          "type": "MASK",
-          "links": null,
-          "shape": 3
-        },
-        {
-          "name": "Heatmap Mask",
-          "type": "IMAGE",
-          "links": [
-            9
-          ],
-          "shape": 3,
-          "slot_index": 1
-        },
-        {
-          "name": "BW Mask",
-          "type": "IMAGE",
-          "links": [
-            10
-          ],
-          "shape": 3,
-          "slot_index": 2
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "CLIPSegText"
-      },
-      "widgets_values": [
-        "pancakes",
-        "/data/config/comfy/custom_nodes/clipseg-rd64-refined",
-        7,
-        0.4,
-        4
-      ]
-    },
-    {
       "id": 11,
       "type": "CLIPSegImage",
       "pos": [
@@ -300,6 +242,64 @@
       "properties": {
         "Node name for S&R": "PreviewImage"
       }
+    },
+    {
+      "id": 9,
+      "type": "CLIPSegText",
+      "pos": [
+        729,
+        317
+      ],
+      "size": {
+        "0": 400,
+        "1": 212
+      },
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 8
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Mask",
+          "type": "MASK",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "Heatmap Mask",
+          "type": "IMAGE",
+          "links": [
+            9
+          ],
+          "shape": 3,
+          "slot_index": 1
+        },
+        {
+          "name": "BW Mask",
+          "type": "IMAGE",
+          "links": [
+            10
+          ],
+          "shape": 3,
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPSegText"
+      },
+      "widgets_values": [
+        "pancakes, orange juice",
+        "/data/config/comfy/custom_nodes/clipseg-rd64-refined",
+        7,
+        0.4,
+        4
+      ]
     }
   ],
   "links": [
