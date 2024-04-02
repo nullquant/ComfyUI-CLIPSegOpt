@@ -195,6 +195,148 @@ class CLIPSegImage:
         return torch.stack(tensor_bws), torch.stack(image_out_heatmaps), torch.stack(image_out_binaries)
 
 
+class TiledImage:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {"required":
+                    {
+                        "images": ("IMAGE",),
+                        "tile_x": ("INT", {"min": 0, "max": 10, "step": 1, "default": 4}),
+                        "tile_y":  ("INT", {"min": 0, "max": 10, "step": 1, "default": 4}),
+                     },
+                }
+
+    CATEGORY = "image"
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("Result",)
+
+    FUNCTION = "tile_image"
+
+    def tile_image(self, images: torch.Tensor, tile_x: int, tile_y: int) -> torch.Tensor:
+        result = []
+        for image in images:
+            image_pil, image_np = image_from_tensor(image)
+
+            # The width and height of the tile
+            tile_width, tile_height = image_pil.size
+
+            # Creates a new empty image, RGB mode
+            new_image = Image.new('RGB', (tile_width * tile_x, tile_height * tile_y))
+            new_image = new_image.convert("RGB")
+
+            # The width and height of the new image
+            width, height = new_image.size
+
+            # Iterate through a grid, to place the background tile
+            for i in range(0, width, tile_width):
+                for j in range(0, height, tile_height):
+                    #paste the image at location i, j:
+                    new_image.paste(image_pil, (i, j))
+
+            new_array = np.array(new_image).astype(np.float32) / 255.0
+            result.append(torch.from_numpy(new_array))
+            
+        return (torch.stack(result),)
+
+
+
+# wildcard trick is taken from pythongossss's
+class AnyType(str):
+    def __ne__(self, __value: object) -> bool:
+        return False
+
+any_type = AnyType("*")
+
+
+# GeneralSwitch node is taken from ltdrdata's ComfyUI-Impact-Pack
+class GeneralSwitch:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {"required": {
+                    "select": ("INT", {"default": 1, "min": 1, "max": 3, "step": 1}),
+                    "input1": (any_type,),
+                    },
+                "optional": {
+                    "input2": (any_type,),
+                    "input3": (any_type,),
+                    },
+                }
+
+    RETURN_TYPES = (any_type, "INT")
+    RETURN_NAMES = ("Value", "Index")
+    FUNCTION = "doit"
+
+    CATEGORY = "ImpactPack/Util"
+
+    def doit(self, select, input1, input2=None, input3=None):
+        if select == 1:
+            return (input1, select)
+        elif select == 2:
+            return (input2, select)
+        else:
+            return (input3, select)
+
+
+def cv_blur_tensor(images, dx, dy):
+    if min(dx, dy) > 100:
+        np_img = torch.nn.functional.interpolate(images.detach().clone().movedim(-1,1), scale_factor=0.1, mode='bilinear').movedim(1,-1).cpu().numpy()
+        for index, image in enumerate(np_img):
+            np_img[index] = cv2.GaussianBlur(image, (dx // 20 * 2 + 1, dy // 20 * 2 + 1), 0)
+        return torch.nn.functional.interpolate(torch.from_numpy(np_img).movedim(-1,1), size=(images.shape[1], images.shape[2]), mode='bilinear').movedim(1,-1)
+    else:
+        np_img = images.detach().clone().cpu().numpy()
+        for index, image in enumerate(np_img):
+            np_img[index] = cv2.GaussianBlur(image, (dx, dy), 0)
+        return torch.from_numpy(np_img)
+
+
+# ColorMatchImage node is taken from spacepxl's ComfyUI-Image-Filters
+class ColorMatchImage:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "images": ("IMAGE", ),
+                "reference": ("IMAGE", ),
+                "blur": ("INT", {"default": 0, "min": 0, "max": 1023}),
+                "factor": ("FLOAT", {"default": 1.0, "min": -10.0, "max": 10.0, "step": 0.01,  "round": 0.01}),
+            },
+        }
+
+    RETURN_TYPES = ("IMAGE",)
+    FUNCTION = "batch_normalize"
+
+    CATEGORY = "image/filters"
+
+    def batch_normalize(self, images, reference, blur, factor):
+        t = images.detach().clone()
+        ref = reference.detach().clone()
+        if ref.shape[0] < t.shape[0]:
+            ref = ref[0].unsqueeze(0).repeat(t.shape[0], 1, 1, 1)
+        
+        if blur == 0:
+            mean = torch.mean(t, (1,2), keepdim=True)
+            mean_ref = torch.mean(ref, (1,2), keepdim=True)
+            for i in range(t.shape[0]):
+                for c in range(3):
+                    t[i,:,:,c] /= mean[i,0,0,c]
+                    t[i,:,:,c] *= mean_ref[i,0,0,c]
+        else:
+            d = blur * 2 + 1
+            blurred = cv_blur_tensor(torch.clamp(t, 0.001, 1), d, d)
+            blurred_ref = cv_blur_tensor(torch.clamp(ref, 0.001, 1), d, d)
+            for i in range(t.shape[0]):
+                for c in range(3):
+                    t[i,:,:,c] /= blurred[i,:,:,c]
+                    t[i,:,:,c] *= blurred_ref[i,:,:,c]
+        
+        t = torch.lerp(images, t, factor)
+        return (t,)
+
+
+
+
+
 def image_from_tensor(t: torch.Tensor):
     # Convert the Tensor to a PIL image
     image_np = t.numpy() 
